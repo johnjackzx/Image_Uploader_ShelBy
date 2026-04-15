@@ -1,0 +1,1 @@
+aptos move publish --package-dir . --named-addresses image_vault=0xYOUR_ADDRESS
