@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quoc Anh_Image Uploader With ShelBy Devnet • Upload to Shelby on Aptos (Move + APT)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@aptos-labs/wallet-adapter-core@latest/dist/index.js"></script>
+    <script src="https://unpkg.com/@aptos-labs/wallet-adapter-react@latest/dist/index.js"></script>
+    <!-- Note: For production, use a bundler like Vite + React + @shelby-protocol/sdk -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        body { font-family: 'Inter', system_ui, sans-serif; }
+        .glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(12px); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-zinc-950 via-black to-zinc-950 text-white min-h-screen">
+    <div class="max-w-4xl mx-auto px-6 py-12">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-12">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center text-xl">📸</div>
+                <h1 class="text-3xl font-semibold tracking-tight">Quoc Anh_Image Uploader With ShelBy Devnet
+               </h1>
+                <span class="px-3 py-1 text-xs font-mono bg-white/10 rounded-full text-emerald-400">Shelby × Aptos</span>
+            </div>
+            <div id="wallet-status" onclick="connectWallet()" 
+                 class="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-3xl cursor-pointer transition-all">
+                <div id="wallet-button" class="flex items-center gap-2">
+                    <span id="wallet-address" class="font-mono text-sm"></span>
+                    <div class="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mb-10">
+            <h2 class="text-5xl font-semibold tracking-tighter mb-3">Upload Images.<br>Store on Shelby.<br>Pay with APT.</h2>
+            <p class="text-zinc-400 max-w-md mx-auto">Decentralized blob storage powered by Shelby Protocol on Aptos. Move smart contract + APT gas + ShelbyUSD fees. Images are immutable, fast, and yours forever.</p>
+        </div>
+
+        <!-- Upload Card -->
+        <div class="glass border border-white/10 rounded-3xl p-8 shadow-2xl">
+            <div id="upload-area" 
+                 onclick="document.getElementById('file-input').click()"
+                 class="border-2 border-dashed border-white/30 hover:border-emerald-400 rounded-3xl h-80 flex flex-col items-center justify-center cursor-pointer transition-all group">
+                <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                
+                <div id="upload-prompt" class="text-center">
+                    <div class="w-16 h-16 mx-auto mb-6 bg-white/10 group-hover:bg-emerald-500/10 rounded-2xl flex items-center justify-center text-4xl transition-colors">📤</div>
+                    <p class="text-2xl font-medium mb-2">Drop your image here</p>
+                    <p class="text-zinc-400">or click to select (PNG, JPG, WebP up to 50MB)</p>
+                    <p class="text-xs text-emerald-400 mt-8 font-mono">Shelby Testnet • Powered by Move + APT</p>
+                </div>
+
+                <div id="preview-area" class="hidden flex-col items-center">
+                    <img id="image-preview" class="max-h-52 rounded-2xl shadow-inner mb-6" alt="Preview">
+                    <p id="file-name" class="font-medium"></p>
+                    <button onclick="uploadToShelby(event)" 
+                            class="mt-6 px-10 py-4 bg-emerald-500 hover:bg-emerald-600 text-black font-semibold rounded-2xl flex items-center gap-3 transition-all">
+                        <span>Upload to Shelby • Pay with APT</span>
+                        <span class="text-xl">→</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div id="status" class="mt-6 text-center text-sm font-mono hidden"></div>
+        </div>
+
+        <!-- Info Footer -->
+        <div class="mt-12 grid grid-cols-3 gap-6 text-center text-xs">
+            <div class="bg-white/5 rounded-2xl p-5">
+                <div class="font-semibold mb-1">📦 Shelby Protocol</div>
+                <p class="text-zinc-400">High-performance decentralized blob storage on Aptos</p>
+            </div>
+            <div class="bg-white/5 rounded-2xl p-5">
+                <div class="font-semibold mb-1">🔥 Move Language</div>
+                <p class="text-zinc-400">Custom on-chain registry deployed via Move module</p>
+            </div>
+            <div class="bg-white/5 rounded-2xl p-5">
+                <div class="font-semibold mb-1">APT Currency</div>
+                <p class="text-zinc-400">Gas fees + storage paid via Aptos (ShelbyUSD for protocol fee)</p>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center text-zinc-500 text-xs flex items-center justify-center gap-4">
+            <a href="https://docs.shelby.xyz/protocol" target="_blank" class="hover:text-white">Shelby Docs</a>
+            <span>•</span>
+            <a href="https://aptos.dev" target="_blank" class="hover:text-white">Aptos Move</a>
+            <span>•</span>
+            <span>Testnet only • Early access required</span>
+        </div>
+    </div>
+
+    <script>
+        // =============================================
+        // CONFIGURATION
+        // =============================================
+        const APTOS_NETWORK = "testnet"; // or "mainnet" when available
+        let connectedAccount = null;
+        let selectedFile = null;
+
+        // Tailwind script already loaded
+        function initTailwind() {
+            tailwind.config = {
+                content: [],
+                theme: { extend: {} }
+            };
+        }
+
+        // =============================================
+        // WALLET CONNECTION (Petra / Nightly / etc.)
+        // =============================================
+        async function connectWallet() {
+            if (window.aptos) {
+                try {
+                    const response = await window.aptos.connect();
+                    connectedAccount = response.address;
+                    document.getElementById("wallet-address").innerHTML = 
+                        `${connectedAccount.slice(0,6)}...${connectedAccount.slice(-4)} <span class="text-emerald-400">✓</span>`;
+                    console.log("✅ Wallet connected:", connectedAccount);
+                } catch (e) {
+                    alert("Please install Petra wallet or another Aptos wallet");
+                }
+            } else {
+                alert("No Aptos wallet detected. Install Petra or use Nightly.");
+            }
+        }
+
+        // =============================================
+        // FILE SELECTION
+        // =============================================
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file || !file.type.startsWith("image/")) {
+                alert("Please select a valid image file");
+                return;
+            }
+            if (file.size > 50 * 1024 * 1024) {
+                alert("File too large (max 50MB for demo)");
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                document.getElementById("upload-prompt").classList.add("hidden");
+                const preview = document.getElementById("preview-area");
+                preview.classList.remove("hidden");
+                document.getElementById("image-preview").src = ev.target.result;
+                document.getElementById("file-name").textContent
